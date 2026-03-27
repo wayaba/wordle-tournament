@@ -10,8 +10,25 @@
   border: 1px solid var(--line);
   border-top: 4px solid var(--accent);
   border-radius: 18px;
-  padding: 1.25rem;
+  padding: 1rem 1.5rem;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.hero-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .kicker {
@@ -24,8 +41,8 @@
 }
 
 h1 {
-  margin: 0.45rem 0;
-  font-size: clamp(1.7rem, 3vw, 2.6rem);
+  margin: 0.25rem 0 0;
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
   line-height: 1.05;
 }
 
@@ -359,6 +376,66 @@ tbody tr:hover {
 .message.error {
   background: var(--error-bg);
   border: 1px solid var(--error-line);
+}
+
+.feedback-banner {
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem;
+  margin: 0;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.modal {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 1.5rem;
+  width: min(520px, 100%);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.modal-header h2 {
+  margin: 0;
+}
+
+.modal-close {
+  background: var(--surface-soft);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.modal-close:hover {
+  background: var(--error-bg);
+  border-color: var(--error-line);
+  color: var(--ink);
+  transform: none;
 }
 
 .hint {

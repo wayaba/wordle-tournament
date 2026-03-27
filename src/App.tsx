@@ -43,6 +43,12 @@ function App() {
   const [loadingDemo, setLoadingDemo] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [modalOpen, setModalOpen] = useState(false)
+
+  function closeModal(): void {
+    setModalOpen(false)
+    setError(null)
+  }
 
   const selectedPlayer = useMemo<Player | undefined>(() => playerOptions.find((player) => player.id === selectedPlayerId), [playerOptions, selectedPlayerId])
 
@@ -142,6 +148,7 @@ function App() {
       setShareText('')
       setPin('')
       setMonthKey(entryMonth)
+      setModalOpen(false)
       await refreshLeaderboard(entryMonth)
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : 'No se pudo guardar el resultado.'
@@ -222,86 +229,43 @@ function App() {
     void refreshLeaderboard(monthKey)
   }, [monthKey])
 
+  useEffect(() => {
+    if (!modalOpen) return
+    function onKeyDown(e: KeyboardEvent): void {
+      if (e.key === 'Escape') closeModal()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [modalOpen])
+
   return (
     <main className="page">
       <header className="hero">
-        <p className="kicker">Liga Mensual</p>
-        <h1>Torneo de La Palabra del Día</h1>
-        <p className="subtitle">Carga rápida con texto compartido, puntaje automático y tabla mensual.</p>
-        {!hasRemoteEndpoint && (
-          <div className="hero-tools">
+        <div className="hero-content">
+          <p className="kicker">Liga Mensual</p>
+          <h1>Torneo de La Palabra del Día</h1>
+        </div>
+        <div className="hero-actions">
+          <button
+            type="button"
+            onClick={() => {
+              setFeedback(null)
+              setError(null)
+              setModalOpen(true)
+            }}
+            disabled={loadingPlayers}
+          >
+            {loadingPlayers ? 'Cargando...' : '+ Cargar resultado'}
+          </button>
+          {!hasRemoteEndpoint && (
             <button type="button" className="secondary-button" onClick={handleLoadDemo} disabled={loadingDemo}>
-              {loadingDemo ? 'Cargando demo...' : 'Cargar meses demo'}
+              {loadingDemo ? 'Cargando...' : 'Demo'}
             </button>
-            <p className="hero-note">Carga 4 meses de ejemplo en modo local para probar ganadores y navegación.</p>
-          </div>
-        )}
+          )}
+        </div>
       </header>
 
-      <section className="panel">
-        <h2>Cargar resultado</h2>
-        <form onSubmit={handleSubmit} className="form-grid">
-          <label>
-            Jugador
-            <select
-              value={selectedPlayerId}
-              onChange={(event) => setSelectedPlayerId(event.target.value)}
-              disabled={loadingPlayers || playerOptions.length === 0}
-            >
-              {playerOptions.map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label>
-            PIN
-            <input
-              type="password"
-              inputMode="numeric"
-              value={pin}
-              onChange={(event) => setPin(event.target.value)}
-              placeholder="4 dígitos"
-              disabled={loadingPlayers || playerOptions.length === 0}
-            />
-          </label>
-
-          <label className="span-2">
-            Resultado compartido
-            <textarea
-              value={shareText}
-              onChange={(event) => setShareText(event.target.value)}
-              placeholder={'Pegá el link del resultado de tu juego del día'}
-              rows={7}
-              disabled={loadingPlayers || playerOptions.length === 0}
-            />
-          </label>
-
-          <div className="preview span-2">
-            {parsedResult ? (
-              <>
-                <p>
-                  Palabra #{parsedResult.puzzleNumber} |{' '}
-                  {parsedResult.solved ? `${parsedResult.attempts}/${parsedResult.maxAttempts}` : `X/${parsedResult.maxAttempts}`} |{' '}
-                  {calculateScore(parsedResult.attempts, parsedResult.solved)} pts
-                </p>
-                {parsedResult.grid.length > 0 && <pre>{parsedResult.grid.join('\n')}</pre>}
-              </>
-            ) : (
-              <p>La vista previa aparece cuando el formato es válido.</p>
-            )}
-          </div>
-
-          <button type="submit" disabled={submitting || loadingPlayers || playerOptions.length === 0} className="span-2">
-            {loadingPlayers ? 'Cargando jugadores...' : submitting ? 'Guardando...' : 'Guardar resultado'}
-          </button>
-        </form>
-
-        {feedback && <p className="message ok">{feedback}</p>}
-        {error && <p className="message error">{error}</p>}
-      </section>
+      {feedback && <p className="message ok feedback-banner">{feedback}</p>}
 
       <section className="panel">
         <div className="panel-head">
@@ -403,9 +367,80 @@ function App() {
             </table>
           </div>
         )}
-
-        <p className="hint">Si no configurás endpoint, se usa modo local del navegador para probar.</p>
       </section>
+
+      {modalOpen && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Cargar resultado</h2>
+              <button type="button" className="modal-close" onClick={closeModal} aria-label="Cerrar">
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="form-grid">
+              <label>
+                Jugador
+                <select
+                  value={selectedPlayerId}
+                  onChange={(event) => setSelectedPlayerId(event.target.value)}
+                  disabled={loadingPlayers || playerOptions.length === 0}
+                >
+                  {playerOptions.map((player) => (
+                    <option key={player.id} value={player.id}>
+                      {player.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
+                PIN
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  value={pin}
+                  onChange={(event) => setPin(event.target.value)}
+                  placeholder="4 dígitos"
+                  disabled={loadingPlayers || playerOptions.length === 0}
+                />
+              </label>
+
+              <label className="span-2">
+                Resultado compartido
+                <textarea
+                  value={shareText}
+                  onChange={(event) => setShareText(event.target.value)}
+                  placeholder="Pegá el texto que compartiste desde La Palabra del Día"
+                  rows={6}
+                  disabled={loadingPlayers || playerOptions.length === 0}
+                />
+              </label>
+
+              <div className="preview span-2">
+                {parsedResult ? (
+                  <>
+                    <p>
+                      Palabra #{parsedResult.puzzleNumber} |{' '}
+                      {parsedResult.solved ? `${parsedResult.attempts}/${parsedResult.maxAttempts}` : `X/${parsedResult.maxAttempts}`} |{' '}
+                      {calculateScore(parsedResult.attempts, parsedResult.solved)} pts
+                    </p>
+                    {parsedResult.grid.length > 0 && <pre>{parsedResult.grid.join('\n')}</pre>}
+                  </>
+                ) : (
+                  <p>La vista previa aparece cuando el formato es válido.</p>
+                )}
+              </div>
+
+              <button type="submit" disabled={submitting || loadingPlayers || playerOptions.length === 0} className="span-2">
+                {submitting ? 'Guardando...' : 'Guardar resultado'}
+              </button>
+            </form>
+
+            {error && <p className="message error">{error}</p>}
+          </div>
+        </div>
+      )}
     </main>
   )
 }
