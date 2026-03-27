@@ -1,0 +1,254 @@
+const PLAYERS_SHEET = 'players'
+const RESULTS_SHEET = 'results'
+
+function doGet(event) {
+  const action = event.parameter.action
+
+  try {
+    if (action === 'players') {
+      return jsonResponse({ ok: true, data: getActivePlayers() })
+    }
+
+    if (action === 'leaderboard') {
+      const month = event.parameter.month
+      if (!month) {
+        return jsonResponse({ ok: false, error: 'Falta month.' })
+      }
+
+      return jsonResponse({ ok: true, data: getLeaderboardForMonth(month) })
+    }
+
+    if (action === 'init') {
+      const month = event.parameter.month
+      if (!month) {
+        return jsonResponse({ ok: false, error: 'Falta month.' })
+      }
+
+      return jsonResponse({
+        ok: true,
+        data: {
+          players: getActivePlayers(),
+          leaderboard: getLeaderboardForMonth(month)
+        }
+      })
+    }
+
+    return jsonResponse({ ok: false, error: 'Accion GET no soportada.' })
+  } catch (error) {
+    return jsonResponse({ ok: false, error: error.message || 'Error inesperado.' })
+  }
+}
+
+function doPost(event) {
+  try {
+    const body = JSON.parse(event.postData.contents || '{}')
+    const action = body.action
+
+    if (action === 'submit') {
+      const payload = body.payload
+      const pin = String(body.pin || '')
+
+      validateSubmission(payload, pin)
+      appendResult(payload)
+
+      return jsonResponse({ ok: true })
+    }
+
+    return jsonResponse({ ok: false, error: 'Accion POST no soportada.' })
+  } catch (error) {
+    return jsonResponse({ ok: false, error: error.message || 'Error inesperado.' })
+  }
+}
+
+function jsonResponse(payload) {
+  return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON)
+}
+
+function getSheetOrThrow(name) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name)
+  if (!sheet) {
+    throw new Error(`No existe la hoja ${name}.`)
+  }
+
+  return sheet
+}
+
+function getRowsAsObjects(sheetName) {
+  const sheet = getSheetOrThrow(sheetName)
+  const values = sheet.getDataRange().getValues()
+
+  if (values.length < 2) {
+    return []
+  }
+
+  const headers = values[0]
+  return values
+    .slice(1)
+    .filter((row) => row.some((cell) => cell !== ''))
+    .map((row) => {
+      const result = {}
+      headers.forEach((header, index) => {
+        result[String(header)] = row[index]
+      })
+      return result
+    })
+}
+
+function getActivePlayers() {
+  const cacheKey = 'players'
+  const cached = getCached(cacheKey)
+  if (cached) return cached
+
+  const players = getRowsAsObjects(PLAYERS_SHEET)
+    .filter((row) => String(row.active).toLowerCase() !== 'false')
+    .map((row) => ({
+      id: String(row.id),
+      name: String(row.name)
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  setCached(cacheKey, players, 3600)
+  return players
+}
+
+function validateSubmission(payload, pin) {
+  if (!payload || !payload.playerId) {
+    throw new Error('Falta payload del resultado.')
+  }
+
+  if (!pin) {
+    throw new Error('Falta PIN.')
+  }
+
+  const players = getRowsAsObjects(PLAYERS_SHEET)
+  const player = players.find((row) => String(row.id) === String(payload.playerId))
+
+  if (!player) {
+    throw new Error('Jugador inexistente.')
+  }
+
+  if (String(player.active).toLowerCase() === 'false') {
+    throw new Error('Jugador inactivo.')
+  }
+
+  if (String(player.pin) !== pin) {
+    throw new Error('PIN invalido para ese jugador.')
+  }
+
+  const existing = getRowsAsObjects(RESULTS_SHEET)
+  const duplicate = existing.some((row) => String(row.playerId) === String(payload.playerId) && String(row.puzzleNumber) === String(payload.puzzleNumber))
+
+  if (duplicate) {
+    throw new Error('Ya existe un resultado de ese jugador para esa palabra del dia.')
+  }
+}
+
+function appendResult(payload) {
+  const sheet = getSheetOrThrow(RESULTS_SHEET)
+  const headers = sheet.getDataRange().getValues()[0]
+
+  if (!headers || headers.length === 0) {
+    throw new Error('La hoja results no tiene encabezados.')
+  }
+
+  const row = headers.map((header) => {
+    const value = payload[String(header)]
+    return value === undefined ? '' : value
+  })
+
+  sheet.appendRow(row)
+  removeCached(`leaderboard_${toMonthKey(payload.weekKey)}`)
+}
+
+function toMonthKey(value) {
+  if (value instanceof Date) {
+    const y = value.getFullYear()
+    const m = String(value.getMonth() + 1).padStart(2, '0')
+    return `${y}-${m}`
+  }
+  const s = String(value)
+  const match = s.match(/^(\d{4}-\d{2})/)
+  return match ? match[1] : s
+}
+
+function getCached(key) {
+  const raw = CacheService.getScriptCache().get(key)
+  return raw ? JSON.parse(raw) : null
+}
+
+function setCached(key, data, ttl) {
+  try {
+    CacheService.getScriptCache().put(key, JSON.stringify(data), ttl || 300)
+  } catch (e) {
+    // cache write failed silently — non-critical
+  }
+}
+
+function removeCached(key) {
+  CacheService.getScriptCache().remove(key)
+}
+
+function getLeaderboardForMonth(month) {
+  const cacheKey = `leaderboard_${month}`
+  const cached = getCached(cacheKey)
+  if (cached) return cached
+
+  const rows = getRowsAsObjects(RESULTS_SHEET).filter((row) => toMonthKey(row.weekKey) === String(month))
+  const stats = {}
+
+  rows.forEach((row) => {
+    const playerId = String(row.playerId)
+    if (!stats[playerId]) {
+      stats[playerId] = {
+        playerId,
+        playerName: String(row.playerName),
+        totalPoints: 0,
+        wins: 0,
+        played: 0,
+        attemptSum: 0,
+        solvedCount: 0
+      }
+    }
+
+    const current = stats[playerId]
+    current.played += 1
+    current.totalPoints += Number(row.score || 0)
+
+    const solved = String(row.solved).toLowerCase() === 'true'
+    const attempts = row.attempts === '' ? null : Number(row.attempts)
+
+    if (solved && attempts !== null) {
+      current.wins += 1
+      current.attemptSum += attempts
+      current.solvedCount += 1
+    }
+  })
+
+  const leaderboard = Object.keys(stats)
+    .map((playerId) => {
+      const row = stats[playerId]
+      return {
+        playerId: row.playerId,
+        playerName: row.playerName,
+        totalPoints: row.totalPoints,
+        wins: row.wins,
+        played: row.played,
+        averageAttempts: row.solvedCount > 0 ? Number((row.attemptSum / row.solvedCount).toFixed(2)) : 0
+      }
+    })
+    .sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) {
+        return b.totalPoints - a.totalPoints
+      }
+      if (b.wins !== a.wins) {
+        return b.wins - a.wins
+      }
+      if (a.averageAttempts !== b.averageAttempts) {
+        return a.averageAttempts - b.averageAttempts
+      }
+      return a.playerName.localeCompare(b.playerName)
+    })
+
+  setCached(cacheKey, leaderboard, 300)
+  return leaderboard
+}
