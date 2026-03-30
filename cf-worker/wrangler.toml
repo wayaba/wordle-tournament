@@ -1,0 +1,13 @@
+name = "wordle-tournament-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# KV namespace for caching GAS responses.
+# After running `wrangler kv namespace create CACHE`, paste the IDs below.
+[[kv_namespaces]]
+binding = "CACHE"
+id = "9dd3b227dffd42ba9a21282b7189f004"
+preview_id = "bb06a21eebf34cd28faea15ab1c4be34"
+
+# GAS_URL is stored as a secret (never committed to git).
+# Set it once with: wrangler secret put GAS_URL
