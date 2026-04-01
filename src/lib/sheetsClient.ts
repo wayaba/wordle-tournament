@@ -1,6 +1,7 @@
 import { fallbackPlayers } from '../config/players'
 import type { LeaderboardRow, Player, SubmissionEntry } from '../types'
 import { appendEntry, leaderboardFromEntries, readEntries } from './localStore'
+import { shiftMonthKey, calculateScore } from './scoring'
 
 type ApiResult<T> = {
   ok: boolean
@@ -82,19 +83,66 @@ export async function fetchPlayers(): Promise<Player[]> {
   return result.data
 }
 
-export async function fetchInit(monthKey: string): Promise<{ players: Player[]; leaderboard: LeaderboardRow[] }> {
+export type PlayerDayResult = {
+  playedOn: string
+  solved: boolean
+  attempts: number | null
+  maxAttempts: number
+  score: number
+  puzzleNumber: number
+}
+
+export async function fetchPlayerResults(playerId: string, monthKey: string): Promise<PlayerDayResult[]> {
   if (!endpoint) {
+    const entries = readEntries()
+    return entries
+      .filter((e) => e.playerId === playerId && e.weekKey.startsWith(monthKey))
+      .map((e) => ({
+        playedOn: e.playedOn,
+        solved: e.solved,
+        attempts: e.attempts,
+        maxAttempts: e.maxAttempts ?? 6,
+        score: calculateScore(e.attempts, e.solved),
+        puzzleNumber: e.puzzleNumber
+      }))
+      .sort((a, b) => a.playedOn.localeCompare(b.playedOn))
+  }
+
+  const cacheKey = `player_results:${playerId}:${monthKey}`
+  const cached = cacheGet<PlayerDayResult[]>(cacheKey)
+  if (cached) return cached
+
+  const result = await getJson<PlayerDayResult[]>(new URLSearchParams({ action: 'player_results', playerId, month: monthKey }))
+
+  if (!result.ok || !result.data) {
+    throw new Error(result.error ?? 'No se pudo cargar el detalle del jugador.')
+  }
+
+  cacheSet(cacheKey, result.data)
+  return result.data
+}
+
+export async function fetchInit(monthKey: string): Promise<{
+  players: Player[]
+  leaderboard: LeaderboardRow[]
+  lastMonthWinner: LeaderboardRow | null
+}> {
+  if (!endpoint) {
+    const lastMonthKey = shiftMonthKey(monthKey, -1)
     return {
       players: fallbackPlayers,
-      leaderboard: leaderboardFromEntries(readEntries(), monthKey)
+      leaderboard: leaderboardFromEntries(readEntries(), monthKey),
+      lastMonthWinner: leaderboardFromEntries(readEntries(), lastMonthKey)[0] ?? null
     }
   }
 
+  type InitData = { players: Player[]; leaderboard: LeaderboardRow[]; lastMonthWinner: LeaderboardRow | null }
+
   const cacheKey = `init:${monthKey}`
-  const cached = cacheGet<{ players: Player[]; leaderboard: LeaderboardRow[] }>(cacheKey)
+  const cached = cacheGet<InitData>(cacheKey)
   if (cached) return cached
 
-  const result = await getJson<{ players: Player[]; leaderboard: LeaderboardRow[] }>(new URLSearchParams({ action: 'init', month: monthKey }))
+  const result = await getJson<InitData>(new URLSearchParams({ action: 'init', month: monthKey }))
 
   if (!result.ok || !result.data) {
     throw new Error(result.error ?? 'No se pudo inicializar la app.')

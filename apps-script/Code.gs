@@ -9,6 +9,29 @@ function doGet(event) {
       return jsonResponse({ ok: true, data: getActivePlayers() })
     }
 
+    if (action === 'player_results') {
+      const month = event.parameter.month
+      const playerId = event.parameter.playerId
+      if (!month || !playerId) {
+        return jsonResponse({ ok: false, error: 'Faltan parámetros.' })
+      }
+
+      const rows = getRowsAsObjects(RESULTS_SHEET).filter((row) => toMonthKey(row.weekKey) === String(month) && String(row.playerId) === String(playerId))
+
+      const data = rows
+        .map((row) => ({
+          playedOn: formatDateYMD(row.playedOn),
+          solved: String(row.solved).toLowerCase() === 'true',
+          attempts: row.attempts === '' ? null : Number(row.attempts),
+          maxAttempts: row.maxAttempts === '' ? 6 : Number(row.maxAttempts),
+          score: calcScore(String(row.solved).toLowerCase() === 'true', Number(row.attempts), row.maxAttempts === '' ? 6 : Number(row.maxAttempts)),
+          puzzleNumber: row.puzzleNumber
+        }))
+        .sort((a, b) => String(a.playedOn).localeCompare(String(b.playedOn)))
+
+      return jsonResponse({ ok: true, data })
+    }
+
     if (action === 'leaderboard') {
       const month = event.parameter.month
       if (!month) {
@@ -24,11 +47,14 @@ function doGet(event) {
         return jsonResponse({ ok: false, error: 'Falta month.' })
       }
 
+      const lastMonth = shiftMonthKey(month, -1)
+
       return jsonResponse({
         ok: true,
         data: {
           players: getActivePlayers(),
-          leaderboard: getLeaderboardForMonth(month)
+          leaderboard: getLeaderboardForMonth(month),
+          lastMonthWinner: getLeaderboardForMonth(lastMonth)[0] ?? null
         }
       })
     }
@@ -37,6 +63,22 @@ function doGet(event) {
   } catch (error) {
     return jsonResponse({ ok: false, error: error.message || 'Error inesperado.' })
   }
+}
+
+function formatDateYMD(value) {
+  if (!value) return ''
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return String(value)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function shiftMonthKey(monthKey, delta) {
+  const [year, month] = monthKey.split('-').map(Number)
+  const date = new Date(year, month - 1 + delta, 1)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
 function doPost(event) {
@@ -188,6 +230,12 @@ function removeCached(key) {
   CacheService.getScriptCache().remove(key)
 }
 
+function calcScore(solved, attempts, maxAttempts) {
+  if (!solved) return 0
+  const max = maxAttempts || 6
+  return max - attempts + 1
+}
+
 function getLeaderboardForMonth(month) {
   const cacheKey = `leaderboard_${month}`
   const cached = getCached(cacheKey)
@@ -206,16 +254,23 @@ function getLeaderboardForMonth(month) {
         wins: 0,
         played: 0,
         attemptSum: 0,
-        solvedCount: 0
+        solvedCount: 0,
+        submittedAtSum: 0
       }
     }
 
     const current = stats[playerId]
-    current.played += 1
-    current.totalPoints += Number(row.score || 0)
-
     const solved = String(row.solved).toLowerCase() === 'true'
     const attempts = row.attempts === '' ? null : Number(row.attempts)
+    const maxAttempts = row.maxAttempts === '' ? 6 : Number(row.maxAttempts)
+    const score = calcScore(solved, attempts, maxAttempts)
+
+    // Parsear submittedAt a timestamp
+    const submittedAt = row.submittedAt ? new Date(row.submittedAt).getTime() : 0
+
+    current.played += 1
+    current.totalPoints += score
+    current.submittedAtSum += submittedAt
 
     if (solved && attempts !== null) {
       current.wins += 1
@@ -237,16 +292,9 @@ function getLeaderboardForMonth(month) {
       }
     })
     .sort((a, b) => {
-      if (b.totalPoints !== a.totalPoints) {
-        return b.totalPoints - a.totalPoints
-      }
-      if (b.wins !== a.wins) {
-        return b.wins - a.wins
-      }
-      if (a.averageAttempts !== b.averageAttempts) {
-        return a.averageAttempts - b.averageAttempts
-      }
-      return a.playerName.localeCompare(b.playerName)
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints
+      // Desempate: quien más veces adivinó la palabra ese mes
+      return stats[b.playerId].wins - stats[a.playerId].wins
     })
 
   setCached(cacheKey, leaderboard, 300)

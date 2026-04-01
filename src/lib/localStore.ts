@@ -5,17 +5,11 @@ const STORAGE_KEY = 'wordle_tournament_entries_v1'
 
 export function readEntries(): SubmissionEntry[] {
   const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) {
-    return []
-  }
+  if (!raw) return []
 
   try {
     const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) {
-      return []
-    }
-
-    return parsed as SubmissionEntry[]
+    return Array.isArray(parsed) ? (parsed as SubmissionEntry[]) : []
   } catch {
     return []
   }
@@ -24,11 +18,9 @@ export function readEntries(): SubmissionEntry[] {
 export function appendEntry(entry: SubmissionEntry): void {
   const entries = readEntries()
   const incomingId = buildSubmissionId(entry)
-  const duplicate = entries.some((existing) => buildSubmissionId(existing) === incomingId)
-  if (duplicate) {
+  if (entries.some((e) => buildSubmissionId(e) === incomingId)) {
     throw new Error('Ya existe un resultado tuyo para esa palabra del día.')
   }
-
   entries.push(entry)
   localStorage.setItem(STORAGE_KEY, JSON.stringify(entries))
 }
@@ -41,24 +33,35 @@ export function clearEntries(): void {
   localStorage.removeItem(STORAGE_KEY)
 }
 
+function toMonthKey(value: string | Date): string {
+  if (value instanceof Date) {
+    return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}`
+  }
+  const match = String(value).match(/^(\d{4}-\d{2})/)
+  return match ? match[1] : String(value)
+}
+
+function calcScore(solved: boolean, attempts: number, maxAttempts: number): number {
+  if (!solved) return 0
+  return (maxAttempts ?? 6) - attempts + 1
+}
+
+type PlayerStats = {
+  playerId: string
+  playerName: string
+  totalPoints: number
+  wins: number
+  played: number
+  attemptSum: number
+  solvedCount: number
+  submittedAtSum: number
+}
+
 export function leaderboardFromEntries(entries: SubmissionEntry[], monthKey: string): LeaderboardRow[] {
-  const stats = new Map<
-    string,
-    {
-      playerId: string
-      playerName: string
-      totalPoints: number
-      wins: number
-      played: number
-      attemptSum: number
-      solvedCount: number
-    }
-  >()
+  const stats = new Map<string, PlayerStats>()
 
   for (const entry of entries) {
-    if (entry.weekKey !== monthKey) {
-      continue
-    }
+    if (toMonthKey(entry.weekKey) !== monthKey) continue
 
     const current = stats.get(entry.playerId) ?? {
       playerId: entry.playerId,
@@ -67,11 +70,17 @@ export function leaderboardFromEntries(entries: SubmissionEntry[], monthKey: str
       wins: 0,
       played: 0,
       attemptSum: 0,
-      solvedCount: 0
+      solvedCount: 0,
+      submittedAtSum: 0
     }
 
+    const score = calcScore(entry.solved, entry.attempts ?? 0, entry.maxAttempts ?? 6)
+    const ts = entry.submittedAt ? new Date(entry.submittedAt).getTime() : 0
+
     current.played += 1
-    current.totalPoints += entry.score
+    current.totalPoints += score
+    current.submittedAtSum += ts
+
     if (entry.solved && entry.attempts !== null) {
       current.wins += 1
       current.attemptSum += entry.attempts
@@ -91,15 +100,7 @@ export function leaderboardFromEntries(entries: SubmissionEntry[], monthKey: str
       averageAttempts: row.solvedCount > 0 ? Number((row.attemptSum / row.solvedCount).toFixed(2)) : 0
     }))
     .sort((a, b) => {
-      if (b.totalPoints !== a.totalPoints) {
-        return b.totalPoints - a.totalPoints
-      }
-      if (b.wins !== a.wins) {
-        return b.wins - a.wins
-      }
-      if (a.averageAttempts !== b.averageAttempts) {
-        return a.averageAttempts - b.averageAttempts
-      }
-      return a.playerName.localeCompare(b.playerName)
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints
+      return b.wins - a.wins
     })
 }

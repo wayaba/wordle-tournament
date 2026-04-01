@@ -23,4 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# Copilot/AutoSkills
+.agents/skills/
+skills/
+
 .vercel

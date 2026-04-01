@@ -4,7 +4,7 @@ import { createDemoEntries } from './lib/demoData'
 import { replaceEntries } from './lib/localStore'
 import { parseSharedResult } from './lib/parser'
 import { calculateScore, getDaysUntilMonthEnds, getMonthBounds, getMonthKey, getLocalDateISO, isPastMonth, shiftMonthKey } from './lib/scoring'
-import { fetchInit, fetchMonthlyLeaderboard, hasRemoteEndpoint, submitResult } from './lib/sheetsClient'
+import { fetchInit, fetchMonthlyLeaderboard, fetchPlayerResults, hasRemoteEndpoint, submitResult, type PlayerDayResult } from './lib/sheetsClient'
 import type { LeaderboardRow, ParsedResult, Player, SubmissionEntry } from './types'
 import './App.css'
 
@@ -44,6 +44,25 @@ function App() {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [lastMonthWinner, setLastMonthWinner] = useState<LeaderboardRow | null>(null)
+
+  const [playerDetailOpen, setPlayerDetailOpen] = useState(false)
+  const [playerDetail, setPlayerDetail] = useState<{ name: string; results: PlayerDayResult[] } | null>(null)
+  const [loadingDetail, setLoadingDetail] = useState(false)
+
+  async function handleOpenPlayerDetail(row: LeaderboardRow): Promise<void> {
+    setPlayerDetailOpen(true)
+    setPlayerDetail(null)
+    setLoadingDetail(true)
+    try {
+      const results = await fetchPlayerResults(row.playerId, monthKey)
+      setPlayerDetail({ name: row.playerName, results })
+    } catch {
+      setPlayerDetail({ name: row.playerName, results: [] })
+    } finally {
+      setLoadingDetail(false)
+    }
+  }
 
   function closeModal(): void {
     setModalOpen(false)
@@ -184,11 +203,12 @@ function App() {
       setLoadingPlayers(true)
 
       try {
-        const { players, leaderboard } = await fetchInit(currentMonthKey)
+        const { players, leaderboard, lastMonthWinner } = await fetchInit(currentMonthKey)
         if (cancelled) {
           return
         }
 
+        setLastMonthWinner(lastMonthWinner)
         setPlayerOptions(players)
         setSelectedPlayerId((current) => {
           if (current && players.some((player) => player.id === current)) {
@@ -219,6 +239,11 @@ function App() {
     }
   }, [])
 
+  const lastMonthLabel = useMemo(() => {
+    const { start } = getMonthBounds(shiftMonthKey(currentMonthKey, -1))
+    return monthFormatter.format(start)
+  }, [currentMonthKey])
+
   const [initialMonthKey] = useState(currentMonthKey)
 
   useEffect(() => {
@@ -244,6 +269,11 @@ function App() {
         <div className="hero-content">
           <p className="kicker">Liga Mensual</p>
           <h1>Torneo de La Palabra del Día</h1>
+          {lastMonthWinner && (
+            <p className="kicker">
+              🏆 Campeón de {lastMonthLabel}: <strong>{lastMonthWinner.playerName}</strong> — {lastMonthWinner.totalPoints} pts
+            </p>
+          )}
         </div>
         <div className="hero-actions">
           <button
@@ -349,7 +379,7 @@ function App() {
                         {index === 1 && <span className="player-tag subdued">Cebollita</span>}
                       </div>
                     </td>
-                    <td>
+                    <td onClick={() => handleOpenPlayerDetail(row)} style={{ cursor: 'pointer' }}>
                       <span className="stat-pill stat-pill-points">{row.totalPoints} pts</span>
                     </td>
                     <td>
@@ -438,6 +468,65 @@ function App() {
             </form>
 
             {error && <p className="message error">{error}</p>}
+          </div>
+        </div>
+      )}
+      <section className="panel rules-panel">
+        <h2>Puntuación</h2>
+        <ul>
+          <li>
+            🟩 1er intento: <strong>6 pts</strong>
+          </li>
+          <li>
+            🟩 2do intento: <strong>5 pts</strong>
+          </li>
+          <li>
+            🟨 3er intento: <strong>4 pts</strong>
+          </li>
+          <li>
+            🟨 4to intento: <strong>3 pts</strong>
+          </li>
+          <li>
+            🟧 5to intento: <strong>2 pts</strong>
+          </li>
+          <li>
+            🟧 6to intento: <strong>1 pt</strong>
+          </li>
+          <li>
+            ⬛ No adivinás: <strong>0 pts</strong>
+          </li>
+        </ul>
+        <p>En caso de empate, gana quien más veces adivinó la palabra ese mes.</p>
+      </section>
+      {playerDetailOpen && (
+        <div className="modal-overlay" onClick={() => setPlayerDetailOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>{playerDetail?.name}</h2>
+              <button type="button" className="modal-close" onClick={() => setPlayerDetailOpen(false)} aria-label="Cerrar">
+                ✕
+              </button>
+            </div>
+            {loadingDetail ? (
+              <p>Cargando...</p>
+            ) : !playerDetail?.results.length ? (
+              <p>No hay resultados para este mes.</p>
+            ) : (
+              <ul className="player-results-list">
+                <li key="header-key">
+                  <span>Fecha</span>
+                  <span>Intentos</span>
+                  <span>Puntos</span>
+                </li>
+                {playerDetail.results.map((r) => (
+                  <li key={r.playedOn}>
+                    <span>{new Date(`${r.playedOn}T00:00:00`).toLocaleDateString('es-AR')}</span>
+                    <span>{r.solved ? `${r.attempts}/${r.maxAttempts}` : `X/${r.maxAttempts}`}</span>
+                    <span className="stat-pill stat-pill-points">{r.score} pts</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
       )}
