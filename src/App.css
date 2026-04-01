@@ -503,3 +503,40 @@ tbody tr:hover {
   padding: 0.4rem 0;
   border-bottom: 1px solid var(--border, #eee);
 }
+
+.modal-loading {
+  display: flex;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.leaderboard-container {
+  position: relative;
+  min-height: 5rem;
+}
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  z-index: 2;
+}
+
+.spinner {
+  width: 2.2rem;
+  height: 2.2rem;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

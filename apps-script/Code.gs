@@ -293,8 +293,14 @@ function getLeaderboardForMonth(month) {
     })
     .sort((a, b) => {
       if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints
-      // Desempate: quien más veces adivinó la palabra ese mes
-      return stats[b.playerId].wins - stats[a.playerId].wins
+      // Desempate 1: quien más veces adivinó la palabra ese mes
+      const winsA = stats[a.playerId].wins
+      const winsB = stats[b.playerId].wins
+      if (winsB !== winsA) return winsB - winsA
+      // Desempate 2: quien adivinó más temprano en promedio
+      const avgA = winsA > 0 ? stats[a.playerId].submittedAtSum / winsA : Infinity
+      const avgB = winsB > 0 ? stats[b.playerId].submittedAtSum / winsB : Infinity
+      return avgA - avgB
     })
 
   setCached(cacheKey, leaderboard, 300)

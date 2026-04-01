@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { validateLocalPlayerPin } from './config/players'
 import { createDemoEntries } from './lib/demoData'
 import { replaceEntries } from './lib/localStore'
@@ -244,10 +244,11 @@ function App() {
     return monthFormatter.format(start)
   }, [currentMonthKey])
 
-  const [initialMonthKey] = useState(currentMonthKey)
+  const initialLoadDone = useRef(false)
 
   useEffect(() => {
-    if (monthKey === initialMonthKey) {
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true
       return
     }
 
@@ -344,59 +345,64 @@ function App() {
           )}
         </div>
 
-        {loadingBoard ? (
-          <p>Cargando tabla...</p>
-        ) : rows.length === 0 ? (
-          <p>Aún no hay resultados para este mes.</p>
-        ) : (
-          <div className="leaderboard-card">
-            <table className="leaderboard-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Jugador</th>
-                  <th>Puntos</th>
-                  <th>Aciertos</th>
-                  <th>Partidas</th>
-                  <th>Prom. intentos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, index) => (
-                  <tr
-                    key={row.playerId}
-                    className={['leaderboard-row', index === 0 ? 'leader-row' : '', index < 3 ? `podium-row podium-row-${index + 1}` : '']
-                      .filter(Boolean)
-                      .join(' ')}
-                  >
-                    <td>
-                      <span className={['rank-badge', index < 3 ? `rank-badge-${index + 1}` : ''].filter(Boolean).join(' ')}>{getRankLabel(index)}</span>
-                    </td>
-                    <td>
-                      <div className="player-cell">
-                        <span className="player-name">{row.playerName}</span>
-                        {index === 0 && <span className="player-tag">Lider</span>}
-                        {index === 1 && <span className="player-tag subdued">Cebollita</span>}
-                      </div>
-                    </td>
-                    <td onClick={() => handleOpenPlayerDetail(row)} style={{ cursor: 'pointer' }}>
-                      <span className="stat-pill stat-pill-points">{row.totalPoints} pts</span>
-                    </td>
-                    <td>
-                      <span className="stat-pill">{row.wins}</span>
-                    </td>
-                    <td>
-                      <span className="stat-pill">{row.played}</span>
-                    </td>
-                    <td>
-                      <span className="stat-pill stat-pill-soft">{row.averageAttempts === 0 ? '-' : row.averageAttempts}</span>
-                    </td>
+        <div className="leaderboard-container">
+          {loadingBoard && (
+            <div className="loading-overlay">
+              <div className="spinner" />
+            </div>
+          )}
+          {rows.length === 0 ? (
+            <p>Aún no hay resultados para este mes.</p>
+          ) : (
+            <div className="leaderboard-card">
+              <table className="leaderboard-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Jugador</th>
+                    <th>Puntos</th>
+                    <th>Aciertos</th>
+                    <th>Partidas</th>
+                    <th>Prom. intentos</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {rows.map((row, index) => (
+                    <tr
+                      key={row.playerId}
+                      className={['leaderboard-row', index === 0 ? 'leader-row' : '', index < 3 ? `podium-row podium-row-${index + 1}` : '']
+                        .filter(Boolean)
+                        .join(' ')}
+                    >
+                      <td>
+                        <span className={['rank-badge', index < 3 ? `rank-badge-${index + 1}` : ''].filter(Boolean).join(' ')}>{getRankLabel(index)}</span>
+                      </td>
+                      <td>
+                        <div className="player-cell">
+                          <span className="player-name">{row.playerName}</span>
+                          {index === 0 && <span className="player-tag">Lider</span>}
+                          {index === 1 && <span className="player-tag subdued">Cebollita</span>}
+                        </div>
+                      </td>
+                      <td onClick={() => handleOpenPlayerDetail(row)} style={{ cursor: 'pointer' }}>
+                        <span className="stat-pill stat-pill-points">{row.totalPoints} pts</span>
+                      </td>
+                      <td>
+                        <span className="stat-pill">{row.wins}</span>
+                      </td>
+                      <td>
+                        <span className="stat-pill">{row.played}</span>
+                      </td>
+                      <td>
+                        <span className="stat-pill stat-pill-soft">{row.averageAttempts === 0 ? '-' : row.averageAttempts}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </section>
 
       {modalOpen && (
@@ -508,7 +514,9 @@ function App() {
               </button>
             </div>
             {loadingDetail ? (
-              <p>Cargando...</p>
+              <div className="modal-loading">
+                <div className="spinner" />
+              </div>
             ) : !playerDetail?.results.length ? (
               <p>No hay resultados para este mes.</p>
             ) : (

@@ -91,6 +91,13 @@ export function leaderboardFromEntries(entries: SubmissionEntry[], monthKey: str
   }
 
   return [...stats.values()]
+    .sort((a, b) => {
+      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints
+      if (b.wins !== a.wins) return b.wins - a.wins
+      const avgA = a.wins > 0 ? a.submittedAtSum / a.wins : Infinity
+      const avgB = b.wins > 0 ? b.submittedAtSum / b.wins : Infinity
+      return avgA - avgB
+    })
     .map((row) => ({
       playerId: row.playerId,
       playerName: row.playerName,
@@ -99,8 +106,4 @@ export function leaderboardFromEntries(entries: SubmissionEntry[], monthKey: str
       played: row.played,
       averageAttempts: row.solvedCount > 0 ? Number((row.attemptSum / row.solvedCount).toFixed(2)) : 0
     }))
-    .sort((a, b) => {
-      if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints
-      return b.wins - a.wins
-    })
 }
