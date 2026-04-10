@@ -258,14 +258,6 @@ tbody tr:hover {
   transform: translateY(-1px);
 }
 
-.leader-row {
-  background: var(--gold-bg);
-}
-
-.leader-row:hover {
-  background: #fef3c7;
-}
-
 .podium-row-1 {
   box-shadow: inset 4px 0 0 var(--gold);
 }
@@ -548,4 +540,31 @@ tbody tr:hover {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* globals.css o index.css */
+:root {
+  --color-background: #121213;
+  --color-surface: #1a1a1b;
+  --color-primary: #538d4e;
+  --color-text: #ffffff;
+  --tile-correct: #538d4e;
+  --tile-present: #b59f3b;
+  --tile-absent: #3a3a3c;
+  --font-display: inherit;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text);
+}
+
+.tile-correct {
+  background: var(--tile-correct);
+}
+.tile-present {
+  background: var(--tile-present);
+}
+.tile-absent {
+  background: var(--tile-absent);
 }

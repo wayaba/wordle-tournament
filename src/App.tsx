@@ -7,6 +7,9 @@ import { calculateScore, getDaysUntilMonthEnds, getMonthBounds, getMonthKey, get
 import { fetchInit, fetchMonthlyLeaderboard, fetchPlayerResults, hasRemoteEndpoint, submitResult, type PlayerDayResult } from './lib/sheetsClient'
 import type { LeaderboardRow, ParsedResult, Player, SubmissionEntry } from './types'
 import './App.css'
+import { applyTheme } from './themes/applyTheme'
+import { getCurrentTheme } from './themes/monthlyThemes'
+import ThemeBadge from './themes/ThemeBadge'
 
 const monthFormatter = new Intl.DateTimeFormat('es-AR', {
   month: 'long',
@@ -199,6 +202,9 @@ function App() {
   useEffect(() => {
     let cancelled = false
 
+    const theme = getCurrentTheme()
+    applyTheme(theme)
+
     async function loadPlayers(): Promise<void> {
       setLoadingPlayers(true)
 
@@ -302,7 +308,10 @@ function App() {
         <div className="panel-head">
           <div>
             <h2>Tabla mensual</h2>
-            <p className="week-range">{monthSummary.rangeLabel}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <p className="week-range">{monthSummary.rangeLabel}</p>
+              <ThemeBadge />
+            </div>
           </div>
           <div className="week-nav">
             <button type="button" onClick={() => setMonthKey((current) => shiftMonthKey(current, -1))}>
@@ -352,7 +361,7 @@ function App() {
             </div>
           )}
           {rows.length === 0 ? (
-            <p>Aún no hay resultados para este mes.</p>
+            <p></p>
           ) : (
             <div className="leaderboard-card">
               <table className="leaderboard-table">
@@ -385,7 +394,7 @@ function App() {
                         </div>
                       </td>
                       <td onClick={() => handleOpenPlayerDetail(row)} style={{ cursor: 'pointer' }}>
-                        <span className="stat-pill stat-pill-points">{row.totalPoints} pts</span>
+                        <span className="stat-pill stat-pill-points">{row.totalPoints}</span>
                       </td>
                       <td>
                         <span className="stat-pill">{row.wins}</span>
