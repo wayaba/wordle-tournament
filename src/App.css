@@ -449,6 +449,15 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  .hero-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .hero-actions button {
+    flex: 1 1 100%;
+  }
+
   .panel-head {
     flex-direction: column;
     align-items: stretch;
