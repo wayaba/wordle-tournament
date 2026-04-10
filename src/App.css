@@ -32,7 +32,6 @@
 }
 
 .kicker {
-  margin: 0;
   font-size: 0.82rem;
   text-transform: uppercase;
   letter-spacing: 0.16em;
@@ -176,7 +175,6 @@ button:disabled {
 }
 
 .week-range {
-  margin: 0.3rem 0 0;
   color: var(--muted);
   font-size: 0.95rem;
 }
@@ -185,7 +183,7 @@ button:disabled {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .week-nav button {
@@ -235,6 +233,12 @@ td {
   text-align: left;
   padding: 0.75rem 0.7rem;
   border-bottom: 1px solid var(--line);
+}
+
+/* Centre numeric columns (#, Pts, G, PJ, Prom) — skip Jugador (col 2) */
+.leaderboard-table th:not(:nth-child(2)),
+.leaderboard-table td:not(:nth-child(2)) {
+  text-align: center;
 }
 
 th {

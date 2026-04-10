@@ -307,22 +307,11 @@ function App() {
       <section className="panel">
         <div className="panel-head">
           <div>
-            <h2>Tabla mensual</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <p>Tabla</p>
               <p className="week-range">{monthSummary.rangeLabel}</p>
               <ThemeBadge />
             </div>
-          </div>
-          <div className="week-nav">
-            <button type="button" onClick={() => setMonthKey((current) => shiftMonthKey(current, -1))}>
-              Mes anterior
-            </button>
-            <button type="button" onClick={() => setMonthKey(currentMonthKey)} disabled={monthKey === currentMonthKey}>
-              Mes actual
-            </button>
-            <button type="button" onClick={() => setMonthKey((current) => shiftMonthKey(current, 1))} disabled={monthKey === currentMonthKey}>
-              Mes siguiente
-            </button>
           </div>
         </div>
 
@@ -369,10 +358,10 @@ function App() {
                   <tr>
                     <th>#</th>
                     <th>Jugador</th>
-                    <th>Puntos</th>
-                    <th>Aciertos</th>
-                    <th>Partidas</th>
-                    <th>Prom. intentos</th>
+                    <th>Pts</th>
+                    <th>G</th>
+                    <th>PJ</th>
+                    <th>Prom</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -389,8 +378,6 @@ function App() {
                       <td>
                         <div className="player-cell">
                           <span className="player-name">{row.playerName}</span>
-                          {index === 0 && <span className="player-tag">Lider</span>}
-                          {index === 1 && <span className="player-tag subdued">Cebollita</span>}
                         </div>
                       </td>
                       <td onClick={() => handleOpenPlayerDetail(row)} style={{ cursor: 'pointer' }}>
@@ -413,6 +400,18 @@ function App() {
           )}
         </div>
       </section>
+
+      <div className="week-nav">
+        <button type="button" onClick={() => setMonthKey((current) => shiftMonthKey(current, -1))}>
+          Mes anterior
+        </button>
+        <button type="button" onClick={() => setMonthKey(currentMonthKey)} disabled={monthKey === currentMonthKey}>
+          Mes actual
+        </button>
+        <button type="button" onClick={() => setMonthKey((current) => shiftMonthKey(current, 1))} disabled={monthKey === currentMonthKey}>
+          Mes siguiente
+        </button>
+      </div>
 
       {modalOpen && (
         <div className="modal-overlay" onClick={closeModal}>
