@@ -258,7 +258,6 @@ export const monthlyThemes: Record<number, MonthTheme> = {
 }
 
 export function getCurrentTheme(): MonthTheme {
-  //const month = new Date().getMonth() // 0 = enero
-  const month = 9
+  const month = new Date().getMonth() // 0 = enero
   return monthlyThemes[month]
 }
