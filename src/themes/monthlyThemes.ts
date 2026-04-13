@@ -24,6 +24,7 @@ export interface MonthTheme {
   tileAbsent: string
 
   font?: string
+  svg?: string
 }
 
 // 🔵 THEMES BASE
@@ -45,7 +46,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     tileCorrect: '#06D6A0',
     tilePresent: '#FFD60A',
     tileAbsent: '#1A2E45',
-    font: "'Pacifico', cursive"
+    font: "'Pacifico', cursive",
+    svg: 'enero.svg'
   },
 
   1: {
@@ -64,7 +66,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     lineAccent: '#E040FB55',
     tileCorrect: '#00E676',
     tilePresent: '#FF6D00',
-    tileAbsent: '#2D0044'
+    tileAbsent: '#2D0044',
+    svg: 'febrero.svg'
   },
 
   2: {
@@ -83,7 +86,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     lineAccent: '#64B5F655',
     tileCorrect: '#81C784',
     tilePresent: '#FFD54F',
-    tileAbsent: '#1A2E40'
+    tileAbsent: '#1A2E40',
+    svg: 'marzo.svg'
   },
 
   3: {
@@ -102,7 +106,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     lineAccent: '#A8D8A855',
     tileCorrect: '#66BB6A',
     tilePresent: '#F48FB1',
-    tileAbsent: '#1E2E1E'
+    tileAbsent: '#1E2E1E',
+    svg: 'abril.svg'
   },
 
   4: {
@@ -121,7 +126,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     lineAccent: '#75AADB55',
     tileCorrect: '#6FCF97',
     tilePresent: '#F2C94C',
-    tileAbsent: '#1A2C4A'
+    tileAbsent: '#1A2C4A',
+    svg: 'mayo.svg'
   },
 
   5: {
@@ -140,7 +146,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     lineAccent: '#74ACDF55',
     tileCorrect: '#4FC3F7',
     tilePresent: '#FFF176',
-    tileAbsent: '#1A2A45'
+    tileAbsent: '#1A2A45',
+    svg: 'junio.svg'
   },
 
   6: {
@@ -159,7 +166,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     lineAccent: '#90CAF955',
     tileCorrect: '#4FC3F7',
     tilePresent: '#FFD54F',
-    tileAbsent: '#1A2035'
+    tileAbsent: '#1A2035',
+    svg: 'julio.svg'
   },
 
   7: {
@@ -178,7 +186,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     lineAccent: '#D4A37355',
     tileCorrect: '#81C784',
     tilePresent: '#FF8A65',
-    tileAbsent: '#2A1E10'
+    tileAbsent: '#2A1E10',
+    svg: 'agosto.svg'
   },
 
   8: {
@@ -197,7 +206,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     lineAccent: '#F48FB155',
     tileCorrect: '#A5D6A7',
     tilePresent: '#CE93D8',
-    tileAbsent: '#201028'
+    tileAbsent: '#201028',
+    svg: 'septiembre.svg'
   },
 
   9: {
@@ -216,7 +226,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     lineAccent: '#FF6F0055',
     tileCorrect: '#4CAF50',
     tilePresent: '#9C27B0',
-    tileAbsent: '#1A1A1A'
+    tileAbsent: '#1A1A1A',
+    svg: 'octubre.svg'
   },
 
   10: {
@@ -235,7 +246,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     lineAccent: '#6BA36855',
     tileCorrect: '#81C784',
     tilePresent: '#FFD54F',
-    tileAbsent: '#1E2E1E'
+    tileAbsent: '#1E2E1E',
+    svg: 'noviembre.svg'
   },
 
   11: {
@@ -254,7 +266,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
     lineAccent: '#FFD70055',
     tileCorrect: '#66BB6A',
     tilePresent: '#EF5350',
-    tileAbsent: '#101A10'
+    tileAbsent: '#101A10',
+    svg: 'diciembre.svg'
   }
 }
 

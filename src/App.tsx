@@ -34,6 +34,7 @@ function getRankLabel(position: number): string {
 
 function App() {
   const currentMonthKey = getMonthKey(new Date())
+  const currentTheme = getCurrentTheme()
   const [playerOptions, setPlayerOptions] = useState<Player[]>([])
   const [loadingPlayers, setLoadingPlayers] = useState(true)
   const [selectedPlayerId, setSelectedPlayerId] = useState('')
@@ -306,12 +307,14 @@ function App() {
 
       <section className="panel">
         <div className="panel-head">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <p>Tabla</p>
+          <div className="panel-title-row">
+            <div className="panel-title-left">
               <p className="week-range">{monthSummary.rangeLabel}</p>
-              <ThemeBadge />
+              <span className="theme-badge-wrap">
+                <ThemeBadge />
+              </span>
             </div>
+            {currentTheme.svg && <img src={`/themes/${currentTheme.svg}`} alt={currentTheme.name} className="kicker-svg" />}
           </div>
         </div>
 
