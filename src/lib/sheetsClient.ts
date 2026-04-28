@@ -1,7 +1,7 @@
 import { fallbackPlayers } from '../config/players'
-import type { LeaderboardRow, Player, SubmissionEntry } from '../types'
+import type { GlobalRankingRow, LeaderboardRow, Player, SubmissionEntry } from '../types'
 import { appendEntry, leaderboardFromEntries, readEntries } from './localStore'
-import { shiftMonthKey, calculateScore } from './scoring'
+import { shiftMonthKey, calculateScore, getMonthKey, isPastMonth } from './scoring'
 
 type ApiResult<T> = {
   ok: boolean
@@ -179,6 +179,53 @@ export async function fetchMonthlyLeaderboard(monthKey: string): Promise<Leaderb
 
   if (!result.ok || !result.data) {
     throw new Error(result.error ?? 'Error al leer la tabla mensual.')
+  }
+
+  cacheSet(cacheKey, result.data)
+  return result.data
+}
+
+export async function fetchGlobalRanking(): Promise<GlobalRankingRow[]> {
+  if (!endpoint) {
+    const entries = readEntries()
+    const currentMonthKey = getMonthKey(new Date())
+    const monthSet = new Set<string>()
+    for (const entry of entries) {
+      const mk = entry.weekKey.slice(0, 7)
+      if (mk < currentMonthKey) monthSet.add(mk)
+    }
+
+    const counts = new Map<string, GlobalRankingRow>()
+    for (const month of monthSet) {
+      if (!isPastMonth(month)) continue
+      const leaderboard = leaderboardFromEntries(entries, month)
+      for (let pos = 0; pos < 3 && pos < leaderboard.length; pos++) {
+        const row = leaderboard[pos]
+        if (!counts.has(row.playerId)) {
+          counts.set(row.playerId, { playerId: row.playerId, playerName: row.playerName, firsts: 0, seconds: 0, thirds: 0 })
+        }
+        const c = counts.get(row.playerId)!
+        if (pos === 0) c.firsts += 1
+        else if (pos === 1) c.seconds += 1
+        else c.thirds += 1
+      }
+    }
+
+    return [...counts.values()].sort((a, b) => {
+      if (b.firsts !== a.firsts) return b.firsts - a.firsts
+      if (b.seconds !== a.seconds) return b.seconds - a.seconds
+      return b.thirds - a.thirds
+    })
+  }
+
+  const cacheKey = 'global_ranking'
+  const cached = cacheGet<GlobalRankingRow[]>(cacheKey)
+  if (cached) return cached
+
+  const result = await getJson<GlobalRankingRow[]>(new URLSearchParams({ action: 'global_ranking' }))
+
+  if (!result.ok || !result.data) {
+    throw new Error(result.error ?? 'No se pudo cargar el ranking histórico.')
   }
 
   cacheSet(cacheKey, result.data)

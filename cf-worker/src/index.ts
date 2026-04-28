@@ -5,6 +5,7 @@ export interface Env {
 
 const PLAYERS_TTL = 3600 // 1 hour  — players rarely change
 const LEADERBOARD_TTL = 180 // 3 minutes — show new submissions quickly
+const GLOBAL_RANKING_TTL = 3600 // 1 hour — only changes when a month closes
 
 const CORS_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
@@ -50,6 +51,9 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
   } else if (action === 'leaderboard' && month) {
     cacheKey = `leaderboard:${month}`
     ttl = LEADERBOARD_TTL
+  } else if (action === 'global_ranking') {
+    cacheKey = 'global_ranking'
+    ttl = GLOBAL_RANKING_TTL
   } else {
     // Unknown action — pass through to GAS without caching
     return await proxyToGas(env.GAS_URL, url.searchParams)

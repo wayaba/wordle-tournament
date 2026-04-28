@@ -4,8 +4,16 @@ import { createDemoEntries } from './lib/demoData'
 import { replaceEntries } from './lib/localStore'
 import { parseSharedResult } from './lib/parser'
 import { calculateScore, getDaysUntilMonthEnds, getMonthBounds, getMonthKey, getLocalDateISO, isPastMonth, shiftMonthKey } from './lib/scoring'
-import { fetchInit, fetchMonthlyLeaderboard, fetchPlayerResults, hasRemoteEndpoint, submitResult, type PlayerDayResult } from './lib/sheetsClient'
-import type { LeaderboardRow, ParsedResult, Player, SubmissionEntry } from './types'
+import {
+  fetchGlobalRanking,
+  fetchInit,
+  fetchMonthlyLeaderboard,
+  fetchPlayerResults,
+  hasRemoteEndpoint,
+  submitResult,
+  type PlayerDayResult
+} from './lib/sheetsClient'
+import type { GlobalRankingRow, LeaderboardRow, ParsedResult, Player, SubmissionEntry } from './types'
 import './App.css'
 import { applyTheme } from './themes/applyTheme'
 import { getCurrentTheme } from './themes/monthlyThemes'
@@ -53,6 +61,23 @@ function App() {
   const [playerDetailOpen, setPlayerDetailOpen] = useState(false)
   const [playerDetail, setPlayerDetail] = useState<{ name: string; results: PlayerDayResult[] } | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
+
+  const [globalRankingOpen, setGlobalRankingOpen] = useState(false)
+  const [globalRanking, setGlobalRanking] = useState<GlobalRankingRow[]>([])
+  const [loadingGlobalRanking, setLoadingGlobalRanking] = useState(false)
+
+  async function handleOpenGlobalRanking(): Promise<void> {
+    setGlobalRankingOpen(true)
+    setLoadingGlobalRanking(true)
+    try {
+      const data = await fetchGlobalRanking()
+      setGlobalRanking(data)
+    } catch {
+      setGlobalRanking([])
+    } finally {
+      setLoadingGlobalRanking(false)
+    }
+  }
 
   async function handleOpenPlayerDetail(row: LeaderboardRow): Promise<void> {
     setPlayerDetailOpen(true)
@@ -300,6 +325,9 @@ function App() {
               {loadingDemo ? 'Cargando...' : 'Demo'}
             </button>
           )}
+          <button type="button" className="secondary-button" onClick={handleOpenGlobalRanking}>
+            Ranking Histórico
+          </button>
         </div>
       </header>
 
@@ -515,6 +543,63 @@ function App() {
         </ul>
         <p>En caso de empate, gana quien más veces adivinó la palabra ese mes.</p>
       </section>
+      {globalRankingOpen && (
+        <div className="modal-overlay" onClick={() => setGlobalRankingOpen(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Ranking Histórico</h2>
+              <button type="button" className="modal-close" onClick={() => setGlobalRankingOpen(false)} aria-label="Cerrar">
+                ✕
+              </button>
+            </div>
+            {loadingGlobalRanking ? (
+              <div className="modal-loading">
+                <div className="spinner" />
+              </div>
+            ) : globalRanking.length === 0 ? (
+              <p>Todavía no hay meses finalizados.</p>
+            ) : (
+              <div className="leaderboard-card">
+                <table className="leaderboard-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Jugador</th>
+                      <th>🥇</th>
+                      <th>🥈</th>
+                      <th>🥉</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {globalRanking.map((row, index) => (
+                      <tr key={row.playerId} className={['leaderboard-row', index < 3 ? `podium-row podium-row-${index + 1}` : ''].filter(Boolean).join(' ')}>
+                        <td>
+                          <span className={['rank-badge', index < 3 ? `rank-badge-${index + 1}` : ''].filter(Boolean).join(' ')}>{getRankLabel(index)}</span>
+                        </td>
+                        <td>
+                          <div className="player-cell">
+                            <span className="player-name">{row.playerName}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="stat-pill stat-pill-points">{row.firsts}</span>
+                        </td>
+                        <td>
+                          <span className="stat-pill">{row.seconds}</span>
+                        </td>
+                        <td>
+                          <span className="stat-pill stat-pill-soft">{row.thirds}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {playerDetailOpen && (
         <div className="modal-overlay" onClick={() => setPlayerDetailOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>

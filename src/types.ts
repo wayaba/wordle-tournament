@@ -38,3 +38,11 @@ export type LeaderboardRow = {
   played: number
   averageAttempts: number
 }
+
+export type GlobalRankingRow = {
+  playerId: string
+  playerName: string
+  firsts: number
+  seconds: number
+  thirds: number
+}

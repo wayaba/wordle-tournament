@@ -59,6 +59,10 @@ function doGet(event) {
       })
     }
 
+    if (action === 'global_ranking') {
+      return jsonResponse({ ok: true, data: getGlobalRanking() })
+    }
+
     return jsonResponse({ ok: false, error: 'Accion GET no soportada.' })
   } catch (error) {
     return jsonResponse({ ok: false, error: error.message || 'Error inesperado.' })
@@ -305,4 +309,44 @@ function getLeaderboardForMonth(month) {
 
   setCached(cacheKey, leaderboard, 300)
   return leaderboard
+}
+
+function getGlobalRanking() {
+  const cacheKey = 'global_ranking'
+  const cached = getCached(cacheKey)
+  if (cached) return cached
+
+  const currentMonthKey = toMonthKey(new Date())
+  const rows = getRowsAsObjects(RESULTS_SHEET)
+
+  // Collect all distinct past month keys
+  const monthSet = {}
+  rows.forEach((row) => {
+    const mk = toMonthKey(row.weekKey)
+    if (mk < currentMonthKey) monthSet[mk] = true
+  })
+
+  // Accumulate podium counts per player
+  const counts = {}
+  Object.keys(monthSet).forEach((month) => {
+    const leaderboard = getLeaderboardForMonth(month)
+    for (let pos = 0; pos < 3 && pos < leaderboard.length; pos++) {
+      const entry = leaderboard[pos]
+      if (!counts[entry.playerId]) {
+        counts[entry.playerId] = { playerId: entry.playerId, playerName: entry.playerName, firsts: 0, seconds: 0, thirds: 0 }
+      }
+      if (pos === 0) counts[entry.playerId].firsts += 1
+      else if (pos === 1) counts[entry.playerId].seconds += 1
+      else counts[entry.playerId].thirds += 1
+    }
+  })
+
+  const result = Object.values(counts).sort((a, b) => {
+    if (b.firsts !== a.firsts) return b.firsts - a.firsts
+    if (b.seconds !== a.seconds) return b.seconds - a.seconds
+    return b.thirds - a.thirds
+  })
+
+  setCached(cacheKey, result, 3600)
+  return result
 }
