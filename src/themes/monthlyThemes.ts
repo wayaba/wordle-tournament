@@ -273,6 +273,14 @@ export const monthlyThemes: Record<number, MonthTheme> = {
 
 // 🔥 SPECIAL THEMES (OVERRIDE REAL)
 const specialThemes: Record<string, MonthTheme> = {
+  '16-04': {
+    ...monthlyThemes[3],
+    name: 'Cumple Abi 🎂',
+    accent: '#FFD700',
+    accentStrong: '#FFC107',
+    background: '#09152A',
+    tileCorrect: '#00E676'
+  },
   '11-05': {
     ...monthlyThemes[4],
     name: 'Cumple Pablito 🎂',
@@ -297,7 +305,22 @@ const specialThemes: Record<string, MonthTheme> = {
     background: '#09152A',
     tileCorrect: '#00E676'
   },
-
+  '07-06': {
+    ...monthlyThemes[5],
+    name: 'Cumple Euge 🎂',
+    accent: '#FFD700',
+    accentStrong: '#FFB300',
+    background: '#081529',
+    tileCorrect: '#00BFFF'
+  },
+  '09-06': {
+    ...monthlyThemes[5],
+    name: 'Cumple Fabi 🎂',
+    accent: '#FFD700',
+    accentStrong: '#FFB300',
+    background: '#081529',
+    tileCorrect: '#00BFFF'
+  },
   '20-06': {
     ...monthlyThemes[5],
     name: 'Día de la Bandera 🇦🇷',
@@ -314,7 +337,6 @@ const specialThemes: Record<string, MonthTheme> = {
     accentStrong: '#FFA000',
     background: '#0A0D1A'
   },
-
   '17-08': {
     ...monthlyThemes[7],
     name: 'San Martín 🇦🇷',
