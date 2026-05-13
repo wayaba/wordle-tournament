@@ -289,7 +289,7 @@ const specialThemes: Record<string, MonthTheme> = {
     background: '#09152A',
     tileCorrect: '#00E676'
   },
-  '14-05': {
+  '16-05': {
     ...monthlyThemes[4],
     name: 'Cumple Maru 🎂',
     accent: '#FFD700',
