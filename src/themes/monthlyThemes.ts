@@ -131,8 +131,8 @@ export const monthlyThemes: Record<number, MonthTheme> = {
   },
 
   5: {
-    name: 'Mes del amigo',
-    emoji: '🌕',
+    name: 'Mes de la Bandera',
+    emoji: '🇦🇷',
     background: '#0A1A33',
     surface: '#10264D',
     surfaceSoft: '#163366',
