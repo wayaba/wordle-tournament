@@ -1,5 +1,8 @@
 const PLAYERS_SHEET = 'players'
 const RESULTS_SHEET = 'results'
+const RESULTS_ARCHIVE_SHEET = 'results_archive'
+const MONTHLY_PODIUMS_SHEET = 'monthly_podiums'
+const PODIUM_HEADERS = ['month', 'position', 'playerId', 'playerName', 'totalPoints', 'wins', 'played', 'averageAttempts']
 
 function doGet(event) {
   const action = event.parameter.action
@@ -94,8 +97,15 @@ function doPost(event) {
       const payload = body.payload
       const pin = String(body.pin || '')
 
-      validateSubmission(payload, pin)
-      appendResult(payload)
+      const lock = LockService.getScriptLock()
+      lock.waitLock(30000)
+      try {
+        archiveClosedMonths()
+        validateSubmission(payload, pin)
+        appendResult(payload)
+      } finally {
+        lock.releaseLock()
+      }
 
       return jsonResponse({ ok: true })
     }
@@ -121,7 +131,20 @@ function getSheetOrThrow(name) {
 
 function getRowsAsObjects(sheetName) {
   const sheet = getSheetOrThrow(sheetName)
-  const values = sheet.getDataRange().getValues()
+  return getSheetRowsAsObjects(sheet)
+}
+
+function getRowsAsObjectsIfExists(sheetName) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName)
+  return sheet ? getSheetRowsAsObjects(sheet) : []
+}
+
+function getSheetRowsAsObjects(sheet) {
+  const lastRow = sheet.getLastRow()
+  const lastColumn = sheet.getLastColumn()
+  if (lastRow < 2 || lastColumn < 1) return []
+
+  const values = sheet.getRange(1, 1, lastRow, lastColumn).getValues()
 
   if (values.length < 2) {
     return []
@@ -191,7 +214,8 @@ function validateSubmission(payload, pin) {
 
 function appendResult(payload) {
   const sheet = getSheetOrThrow(RESULTS_SHEET)
-  const headers = sheet.getDataRange().getValues()[0]
+  const lastColumn = sheet.getLastColumn()
+  const headers = lastColumn > 0 ? sheet.getRange(1, 1, 1, lastColumn).getValues()[0] : []
 
   if (!headers || headers.length === 0) {
     throw new Error('La hoja results no tiene encabezados.')
@@ -246,6 +270,17 @@ function getLeaderboardForMonth(month) {
   if (cached) return cached
 
   const rows = getRowsAsObjects(RESULTS_SHEET).filter((row) => toMonthKey(row.weekKey) === String(month))
+  if (rows.length === 0) {
+    const archivedPodium = getArchivedPodium(month)
+    if (archivedPodium.length > 0) return archivedPodium
+  }
+
+  const leaderboard = calculateLeaderboard(rows)
+  setCached(cacheKey, leaderboard, 300)
+  return leaderboard
+}
+
+function calculateLeaderboard(rows) {
   const stats = {}
 
   rows.forEach((row) => {
@@ -283,7 +318,7 @@ function getLeaderboardForMonth(month) {
     }
   })
 
-  const leaderboard = Object.keys(stats)
+  return Object.keys(stats)
     .map((playerId) => {
       const row = stats[playerId]
       return {
@@ -307,8 +342,6 @@ function getLeaderboardForMonth(month) {
       return avgA - avgB
     })
 
-  setCached(cacheKey, leaderboard, 300)
-  return leaderboard
 }
 
 function getGlobalRanking() {
@@ -316,29 +349,36 @@ function getGlobalRanking() {
   const cached = getCached(cacheKey)
   if (cached) return cached
 
-  const currentMonthKey = toMonthKey(new Date())
-  const rows = getRowsAsObjects(RESULTS_SHEET)
+  const podiumRows = getRowsAsObjectsIfExists(MONTHLY_PODIUMS_SHEET)
+  const savedMonths = {}
+  podiumRows.forEach((row) => { savedMonths[String(row.month)] = true })
 
-  // Collect all distinct past month keys
-  const monthSet = {}
-  rows.forEach((row) => {
-    const mk = toMonthKey(row.weekKey)
-    if (mk < currentMonthKey) monthSet[mk] = true
+  // Compatibilidad durante la primera migración: si aún quedan meses cerrados
+  // en results, se incluyen hasta que archiveClosedMonths los consolide.
+  const currentMonth = toMonthKey(new Date())
+  const pendingRowsByMonth = {}
+  getRowsAsObjects(RESULTS_SHEET).forEach((row) => {
+    const month = toMonthKey(row.weekKey)
+    if (month >= currentMonth || savedMonths[month]) return
+    if (!pendingRowsByMonth[month]) pendingRowsByMonth[month] = []
+    pendingRowsByMonth[month].push(row)
+  })
+  Object.keys(pendingRowsByMonth).forEach((month) => {
+    calculateLeaderboard(pendingRowsByMonth[month]).slice(0, 3).forEach((entry, index) => {
+      podiumRows.push(Object.assign({ month, position: index + 1 }, entry))
+    })
   })
 
-  // Accumulate podium counts per player
   const counts = {}
-  Object.keys(monthSet).forEach((month) => {
-    const leaderboard = getLeaderboardForMonth(month)
-    for (let pos = 0; pos < 3 && pos < leaderboard.length; pos++) {
-      const entry = leaderboard[pos]
-      if (!counts[entry.playerId]) {
-        counts[entry.playerId] = { playerId: entry.playerId, playerName: entry.playerName, firsts: 0, seconds: 0, thirds: 0 }
-      }
-      if (pos === 0) counts[entry.playerId].firsts += 1
-      else if (pos === 1) counts[entry.playerId].seconds += 1
-      else counts[entry.playerId].thirds += 1
+  podiumRows.forEach((entry) => {
+    const playerId = String(entry.playerId)
+    if (!counts[playerId]) {
+      counts[playerId] = { playerId, playerName: String(entry.playerName), firsts: 0, seconds: 0, thirds: 0 }
     }
+    const position = Number(entry.position)
+    if (position === 1) counts[playerId].firsts += 1
+    else if (position === 2) counts[playerId].seconds += 1
+    else if (position === 3) counts[playerId].thirds += 1
   })
 
   const result = Object.values(counts).sort((a, b) => {
@@ -349,4 +389,91 @@ function getGlobalRanking() {
 
   setCached(cacheKey, result, 3600)
   return result
+}
+
+function getArchivedPodium(month) {
+  return getRowsAsObjectsIfExists(MONTHLY_PODIUMS_SHEET)
+    .filter((row) => String(row.month) === String(month))
+    .sort((a, b) => Number(a.position) - Number(b.position))
+    .map((row) => ({
+      playerId: String(row.playerId),
+      playerName: String(row.playerName),
+      totalPoints: Number(row.totalPoints),
+      wins: Number(row.wins),
+      played: Number(row.played),
+      averageAttempts: Number(row.averageAttempts)
+    }))
+}
+
+function ensureSheetWithHeaders(name, headers) {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet()
+  let sheet = spreadsheet.getSheetByName(name)
+  if (!sheet) sheet = spreadsheet.insertSheet(name)
+  if (sheet.getLastRow() === 0) sheet.getRange(1, 1, 1, headers.length).setValues([headers])
+  return sheet
+}
+
+function appendObjectRows(sheet, headers, objects) {
+  if (objects.length === 0) return
+  const values = objects.map((object) => headers.map((header) => object[String(header)] === undefined ? '' : object[String(header)]))
+  sheet.getRange(sheet.getLastRow() + 1, 1, values.length, headers.length).setValues(values)
+}
+
+// Punto de entrada para ejecución manual o mediante un trigger mensual.
+function runMonthlyArchive() {
+  const lock = LockService.getScriptLock()
+  lock.waitLock(30000)
+  try {
+    archiveClosedMonths()
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// Es segura al repetirse: no duplica ni los podios ni los resultados archivados.
+function archiveClosedMonths() {
+  const resultsSheet = getSheetOrThrow(RESULTS_SHEET)
+  const lastColumn = resultsSheet.getLastColumn()
+  if (resultsSheet.getLastRow() < 2 || lastColumn < 1) return
+
+  const headers = resultsSheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(String)
+  const rows = getSheetRowsAsObjects(resultsSheet)
+  const currentMonth = toMonthKey(new Date())
+  const closedRows = rows.filter((row) => toMonthKey(row.weekKey) < currentMonth)
+  if (closedRows.length === 0) return
+
+  const podiumSheet = ensureSheetWithHeaders(MONTHLY_PODIUMS_SHEET, PODIUM_HEADERS)
+  const savedMonths = {}
+  getSheetRowsAsObjects(podiumSheet).forEach((row) => { savedMonths[String(row.month)] = true })
+
+  const rowsByMonth = {}
+  closedRows.forEach((row) => {
+    const month = toMonthKey(row.weekKey)
+    if (!rowsByMonth[month]) rowsByMonth[month] = []
+    rowsByMonth[month].push(row)
+  })
+
+  const newPodiums = []
+  Object.keys(rowsByMonth).sort().forEach((month) => {
+    if (savedMonths[month]) return
+    calculateLeaderboard(rowsByMonth[month]).slice(0, 3).forEach((entry, index) => {
+      newPodiums.push(Object.assign({ month, position: index + 1 }, entry))
+    })
+  })
+  appendObjectRows(podiumSheet, PODIUM_HEADERS, newPodiums)
+
+  const archiveSheet = ensureSheetWithHeaders(RESULTS_ARCHIVE_SHEET, headers)
+  const archivedKeys = {}
+  getSheetRowsAsObjects(archiveSheet).forEach((row) => {
+    archivedKeys[`${row.playerId}|${row.puzzleNumber}`] = true
+  })
+  const rowsToArchive = closedRows.filter((row) => !archivedKeys[`${row.playerId}|${row.puzzleNumber}`])
+  appendObjectRows(archiveSheet, headers, rowsToArchive)
+
+  const activeRows = rows.filter((row) => toMonthKey(row.weekKey) >= currentMonth)
+  resultsSheet.getRange(2, 1, resultsSheet.getLastRow() - 1, lastColumn).clearContent()
+  appendObjectRows(resultsSheet, headers, activeRows)
+
+  Object.keys(rowsByMonth).forEach((month) => removeCached(`leaderboard_${month}`))
+  removeCached('global_ranking')
 }

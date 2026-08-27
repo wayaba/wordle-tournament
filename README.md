@@ -58,6 +58,18 @@ Si no configuras endpoint, la app usa `localStorage` del navegador.
 
 `playerId, playerName, puzzleNumber, attempts, maxAttempts, solved, score, rawResult, playedOn, weekKey, submittedAt`
 
+El script crea automáticamente otras dos pestañas al cerrar el primer mes:
+
+- `monthly_podiums`: guarda los tres puestos y puntajes finales de cada mes.
+- `results_archive`: conserva los resultados diarios anteriores como respaldo.
+
+Antes de guardar el primer resultado de un mes nuevo, se consolidan los podios,
+se archivan los resultados anteriores y `results` queda solamente con datos del
+mes vigente. La tabla anual consulta `monthly_podiums` y no recalcula el historial.
+
+Para cerrar el mes sin esperar al próximo envío, se puede crear un activador
+mensual de Apps Script que ejecute `runMonthlyArchive`. La operación es idempotente.
+
 2. Crea un Google Apps Script como Web App y pega el contenido de [apps-script/Code.gs](apps-script/Code.gs).
 
 3. El script expone estas acciones:
