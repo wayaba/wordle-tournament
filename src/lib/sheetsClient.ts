@@ -218,16 +218,11 @@ export async function fetchGlobalRanking(): Promise<GlobalRankingRow[]> {
     })
   }
 
-  const cacheKey = 'global_ranking'
-  const cached = cacheGet<GlobalRankingRow[]>(cacheKey)
-  if (cached) return cached
-
   const result = await getJson<GlobalRankingRow[]>(new URLSearchParams({ action: 'global_ranking' }))
 
   if (!result.ok || !result.data) {
     throw new Error(result.error ?? 'No se pudo cargar el ranking histórico.')
   }
 
-  cacheSet(cacheKey, result.data)
   return result.data
 }
