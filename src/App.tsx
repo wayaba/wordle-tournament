@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import { validateLocalPlayerPin } from './config/players'
 import { createDemoEntries } from './lib/demoData'
 import { replaceEntries } from './lib/localStore'
@@ -48,7 +48,7 @@ function App() {
   const [selectedPlayerId, setSelectedPlayerId] = useState('')
   const [pin, setPin] = useState('')
   const [shareText, setShareText] = useState('')
-  const [monthKey, setMonthKey] = useState(currentMonthKey)
+  const monthKey = currentMonthKey
   const [rows, setRows] = useState<LeaderboardRow[]>([])
   const [loadingBoard, setLoadingBoard] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -195,7 +195,6 @@ function App() {
       setFeedback(`Resultado cargado: ${selectedPlayer.name} sumó ${score} puntos.`)
       setShareText('')
       setPin('')
-      setMonthKey(entryMonth)
       setModalOpen(false)
       await refreshLeaderboard(entryMonth)
     } catch (submitError) {
@@ -214,7 +213,6 @@ function App() {
     try {
       const entries = createDemoEntries(new Date())
       replaceEntries(entries)
-      setMonthKey(currentMonthKey)
       await refreshLeaderboard(currentMonthKey)
       setFeedback('Se cargaron datos demo para 4 meses, incluyendo meses anteriores con ganadores.')
     } catch (loadError) {
@@ -275,17 +273,6 @@ function App() {
     const { start } = getMonthBounds(shiftMonthKey(currentMonthKey, -1))
     return monthFormatter.format(start)
   }, [currentMonthKey])
-
-  const initialLoadDone = useRef(false)
-
-  useEffect(() => {
-    if (!initialLoadDone.current) {
-      initialLoadDone.current = true
-      return
-    }
-
-    void refreshLeaderboard(monthKey)
-  }, [monthKey])
 
   useEffect(() => {
     if (!modalOpen) return
@@ -431,18 +418,6 @@ function App() {
           )}
         </div>
       </section>
-
-      <div className="week-nav">
-        <button type="button" onClick={() => setMonthKey((current) => shiftMonthKey(current, -1))}>
-          Mes anterior
-        </button>
-        <button type="button" onClick={() => setMonthKey(currentMonthKey)} disabled={monthKey === currentMonthKey}>
-          Mes actual
-        </button>
-        <button type="button" onClick={() => setMonthKey((current) => shiftMonthKey(current, 1))} disabled={monthKey === currentMonthKey}>
-          Mes siguiente
-        </button>
-      </div>
 
       {modalOpen && (
         <div className="modal-overlay" onClick={closeModal}>

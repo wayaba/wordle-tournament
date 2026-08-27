@@ -206,17 +206,6 @@ button:disabled {
   font-size: 0.95rem;
 }
 
-.week-nav {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.week-nav button {
-  padding: 0.58rem 0.85rem;
-}
-
 .week-status {
   border: 1px solid var(--line);
   background: var(--surface-soft);
@@ -496,15 +485,7 @@ tbody tr:hover {
     align-items: stretch;
   }
 
-  .week-nav {
-    justify-content: stretch;
-  }
-
   .secondary-button {
-    width: 100%;
-  }
-
-  .week-nav button {
     width: 100%;
   }
 

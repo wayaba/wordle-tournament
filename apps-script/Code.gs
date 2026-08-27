@@ -434,13 +434,19 @@ function runMonthlyArchive() {
 function archiveClosedMonths() {
   const resultsSheet = getSheetOrThrow(RESULTS_SHEET)
   const lastColumn = resultsSheet.getLastColumn()
-  if (resultsSheet.getLastRow() < 2 || lastColumn < 1) return
+  if (resultsSheet.getLastRow() < 2 || lastColumn < 1) {
+    clearRankingCaches()
+    return
+  }
 
   const headers = resultsSheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(String)
   const rows = getSheetRowsAsObjects(resultsSheet)
   const currentMonth = toMonthKey(new Date())
   const closedRows = rows.filter((row) => toMonthKey(row.weekKey) < currentMonth)
-  if (closedRows.length === 0) return
+  if (closedRows.length === 0) {
+    clearRankingCaches()
+    return
+  }
 
   const podiumSheet = ensureSheetWithHeaders(MONTHLY_PODIUMS_SHEET, PODIUM_HEADERS)
   const savedMonths = {}
@@ -474,6 +480,12 @@ function archiveClosedMonths() {
   resultsSheet.getRange(2, 1, resultsSheet.getLastRow() - 1, lastColumn).clearContent()
   appendObjectRows(resultsSheet, headers, activeRows)
 
-  Object.keys(rowsByMonth).forEach((month) => removeCached(`leaderboard_${month}`))
+  clearRankingCaches()
+}
+
+function clearRankingCaches() {
+  getRowsAsObjectsIfExists(MONTHLY_PODIUMS_SHEET).forEach((row) => {
+    removeCached(`leaderboard_${toMonthKey(row.month)}`)
+  })
   removeCached('global_ranking')
 }
