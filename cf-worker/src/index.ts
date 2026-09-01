@@ -50,7 +50,7 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
   } else if (action === 'leaderboard' && month) {
     cacheKey = `leaderboard:${month}`
     ttl = LEADERBOARD_TTL
-  } else if (action === 'global_ranking') {
+  } else if (action === 'global_ranking' || action === 'worst_ranking') {
     // GAS already caches and invalidates this value when a month closes.
     return await proxyToGas(env.GAS_URL, url.searchParams)
   } else {

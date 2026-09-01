@@ -9,11 +9,12 @@ import {
   fetchInit,
   fetchMonthlyLeaderboard,
   fetchPlayerResults,
+  fetchWorstRanking,
   hasRemoteEndpoint,
   submitResult,
   type PlayerDayResult
 } from './lib/sheetsClient'
-import type { GlobalRankingRow, LeaderboardRow, ParsedResult, Player, SubmissionEntry } from './types'
+import type { GlobalRankingRow, LeaderboardRow, ParsedResult, Player, SubmissionEntry, WorstRankingData } from './types'
 import './App.css'
 import { applyTheme } from './themes/applyTheme'
 import { getCurrentTheme } from './themes/monthlyThemes'
@@ -65,6 +66,25 @@ function App() {
   const [globalRankingOpen, setGlobalRankingOpen] = useState(false)
   const [globalRanking, setGlobalRanking] = useState<GlobalRankingRow[]>([])
   const [loadingGlobalRanking, setLoadingGlobalRanking] = useState(false)
+
+  const [worstRankingOpen, setWorstRankingOpen] = useState(false)
+  const [worstRanking, setWorstRanking] = useState<WorstRankingData>({ ranking: [], months: [] })
+  const [loadingWorstRanking, setLoadingWorstRanking] = useState(false)
+  const [worstRankingError, setWorstRankingError] = useState<string | null>(null)
+
+  async function handleOpenWorstRanking(): Promise<void> {
+    setWorstRankingOpen(true)
+    setLoadingWorstRanking(true)
+    setWorstRankingError(null)
+    try {
+      setWorstRanking(await fetchWorstRanking())
+    } catch (loadError) {
+      setWorstRanking({ ranking: [], months: [] })
+      setWorstRankingError(loadError instanceof Error ? loadError.message : 'No se pudo cargar el ranking.')
+    } finally {
+      setLoadingWorstRanking(false)
+    }
+  }
 
   async function handleOpenGlobalRanking(): Promise<void> {
     setGlobalRankingOpen(true)
@@ -314,6 +334,9 @@ function App() {
           )}
           <button type="button" className="secondary-button" onClick={handleOpenGlobalRanking}>
             Ranking Histórico
+          </button>
+          <button type="button" className="secondary-button worst-ranking-button" onClick={handleOpenWorstRanking}>
+            Ranking de los peores
           </button>
         </div>
       </header>
@@ -570,6 +593,52 @@ function App() {
                   </tbody>
                 </table>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {worstRankingOpen && (
+        <div className="modal-overlay" onClick={() => setWorstRankingOpen(false)}>
+          <div className="modal worst-ranking-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <p className="modal-eyebrow">El anti-podio</p>
+                <h2>Ranking de los peores</h2>
+              </div>
+              <button type="button" className="modal-close" onClick={() => setWorstRankingOpen(false)} aria-label="Cerrar">
+                ✕
+              </button>
+            </div>
+            {loadingWorstRanking ? (
+              <div className="modal-loading"><div className="spinner" /></div>
+            ) : worstRankingError ? (
+              <p className="message error">{worstRankingError}</p>
+            ) : worstRanking.months.length === 0 ? (
+              <p>Todavía no hay meses finalizados.</p>
+            ) : (
+              <>
+                <p className="worst-ranking-intro">Cantidad de veces que cada jugador terminó último en un mes cerrado.</p>
+                <div className="worst-summary">
+                  {worstRanking.ranking.map((row, index) => (
+                    <div className="worst-summary-row" key={row.playerId}>
+                      <span className="worst-position">{index + 1}</span>
+                      <strong>{row.playerName}</strong>
+                      <span className="last-place-count">{row.lastPlaces} {row.lastPlaces === 1 ? 'vez' : 'veces'}</span>
+                    </div>
+                  ))}
+                </div>
+                <h3 className="worst-detail-title">Último de cada mes</h3>
+                <ul className="worst-month-list">
+                  {worstRanking.months.map((row) => (
+                    <li key={row.month}>
+                      <time>{monthFormatter.format(getMonthBounds(row.month).start)}</time>
+                      <strong>{row.playerName}</strong>
+                      <span>{row.totalPoints} pts</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
           </div>
         </div>

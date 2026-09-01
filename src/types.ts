@@ -46,3 +46,21 @@ export type GlobalRankingRow = {
   seconds: number
   thirds: number
 }
+
+export type MonthlyLastPlace = {
+  month: string
+  playerId: string
+  playerName: string
+  totalPoints: number
+}
+
+export type WorstRankingRow = {
+  playerId: string
+  playerName: string
+  lastPlaces: number
+}
+
+export type WorstRankingData = {
+  ranking: WorstRankingRow[]
+  months: MonthlyLastPlace[]
+}

@@ -1,5 +1,5 @@
 import { fallbackPlayers } from '../config/players'
-import type { GlobalRankingRow, LeaderboardRow, Player, SubmissionEntry } from '../types'
+import type { GlobalRankingRow, LeaderboardRow, Player, SubmissionEntry, WorstRankingData, WorstRankingRow } from '../types'
 import { appendEntry, leaderboardFromEntries, readEntries } from './localStore'
 import { shiftMonthKey, calculateScore, getMonthKey, isPastMonth } from './scoring'
 
@@ -224,5 +224,38 @@ export async function fetchGlobalRanking(): Promise<GlobalRankingRow[]> {
     throw new Error(result.error ?? 'No se pudo cargar el ranking histórico.')
   }
 
+  return result.data
+}
+
+export async function fetchWorstRanking(): Promise<WorstRankingData> {
+  if (!endpoint) {
+    const entries = readEntries()
+    const currentMonthKey = getMonthKey(new Date())
+    const months = [...new Set(entries.map((entry) => entry.weekKey.slice(0, 7)).filter((month) => month < currentMonthKey))]
+      .sort()
+      .map((month) => {
+        const leaderboard = leaderboardFromEntries(entries, month)
+        const last = leaderboard.at(-1)
+        return last ? { month, playerId: last.playerId, playerName: last.playerName, totalPoints: last.totalPoints } : null
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+
+    const counts = new Map<string, WorstRankingRow>()
+    for (const last of months) {
+      const current = counts.get(last.playerId) ?? { playerId: last.playerId, playerName: last.playerName, lastPlaces: 0 }
+      current.lastPlaces += 1
+      counts.set(last.playerId, current)
+    }
+
+    return {
+      ranking: [...counts.values()].sort((a, b) => b.lastPlaces - a.lastPlaces || a.playerName.localeCompare(b.playerName)),
+      months: months.sort((a, b) => b.month.localeCompare(a.month))
+    }
+  }
+
+  const result = await getJson<WorstRankingData>(new URLSearchParams({ action: 'worst_ranking' }))
+  if (!result.ok || !result.data) {
+    throw new Error(result.error ?? 'No se pudo cargar el ranking de últimos puestos.')
+  }
   return result.data
 }

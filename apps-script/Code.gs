@@ -66,6 +66,10 @@ function doGet(event) {
       return jsonResponse({ ok: true, data: getGlobalRanking() })
     }
 
+    if (action === 'worst_ranking') {
+      return jsonResponse({ ok: true, data: getWorstRanking() })
+    }
+
     return jsonResponse({ ok: false, error: 'Accion GET no soportada.' })
   } catch (error) {
     return jsonResponse({ ok: false, error: error.message || 'Error inesperado.' })
@@ -389,6 +393,58 @@ function getGlobalRanking() {
 
   setCached(cacheKey, result, 3600)
   return result
+}
+
+function getWorstRanking() {
+  const rowsByMonth = {}
+  const currentMonth = toMonthKey(new Date())
+
+  ;[RESULTS_ARCHIVE_SHEET, RESULTS_SHEET].forEach((sheetName) => {
+    getRowsAsObjectsIfExists(sheetName).forEach((row) => {
+      const month = toMonthKey(row.weekKey)
+      if (month >= currentMonth) return
+      if (!rowsByMonth[month]) rowsByMonth[month] = []
+      rowsByMonth[month].push(row)
+    })
+  })
+
+  // Los meses archivados antes de existir results_archive solo conservan su
+  // clasificación en monthly_podiums. Para esos meses, la última posición
+  // guardada es el mejor dato histórico disponible.
+  const podiumRowsByMonth = {}
+  getRowsAsObjectsIfExists(MONTHLY_PODIUMS_SHEET).forEach((row) => {
+    const month = toMonthKey(row.month)
+    if (month >= currentMonth || rowsByMonth[month]) return
+    if (!podiumRowsByMonth[month]) podiumRowsByMonth[month] = []
+    podiumRowsByMonth[month].push(row)
+  })
+
+  const months = Object.keys(rowsByMonth).sort().map((month) => {
+    const leaderboard = calculateLeaderboard(rowsByMonth[month])
+    const last = leaderboard[leaderboard.length - 1]
+    return last ? { month, playerId: last.playerId, playerName: last.playerName, totalPoints: last.totalPoints } : null
+  }).filter(Boolean)
+
+  Object.keys(podiumRowsByMonth).forEach((month) => {
+    const savedPositions = podiumRowsByMonth[month].sort((a, b) => Number(a.position) - Number(b.position))
+    const last = savedPositions[savedPositions.length - 1]
+    if (last) {
+      months.push({ month, playerId: String(last.playerId), playerName: String(last.playerName), totalPoints: Number(last.totalPoints) })
+    }
+  })
+
+  const counts = {}
+  months.forEach((last) => {
+    if (!counts[last.playerId]) {
+      counts[last.playerId] = { playerId: last.playerId, playerName: last.playerName, lastPlaces: 0 }
+    }
+    counts[last.playerId].lastPlaces += 1
+  })
+
+  return {
+    ranking: Object.values(counts).sort((a, b) => b.lastPlaces - a.lastPlaces || a.playerName.localeCompare(b.playerName)),
+    months: months.sort((a, b) => String(b.month).localeCompare(String(a.month)))
+  }
 }
 
 function getArchivedPodium(month) {
